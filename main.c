@@ -17,9 +17,9 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart1;
 
 typedef struct{
-	uint8_t second;
-	uint8_t minute;
-	uint8_t hour;
+  uint8_t second;
+  uint8_t minute;
+  uint8_t hour;
 }RTC_Time;
 
 RTC_Time time;
