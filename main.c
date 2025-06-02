@@ -1,48 +1,11 @@
-/* USER CODE BEGIN Header */
-/**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2025 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
-/* USER CODE END Header */
-/* Includes ------------------------------------------------------------------*/
 #include "main.h"
-
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
 #include "i2c_lcd.h"
 #include <stdio.h>
-/* USER CODE END Includes */
 
-/* Private typedef -----------------------------------------------------------*/
-/* USER CODE BEGIN PTD */
-
-/* USER CODE END PTD */
-
-/* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN PD */
 #define FILTER_SIZE 5
 #define RTC_WRITE_ADDRESS 0xD0
 #define RTC_READ_ADDRESS 0xD1
-/* USER CODE END PD */
 
-/* Private macro -------------------------------------------------------------*/
-/* USER CODE BEGIN PM */
-
-/* USER CODE END PM */
-
-/* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc;
 
 I2C_HandleTypeDef hi2c1;
@@ -53,17 +16,21 @@ TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart1;
 
-/* USER CODE BEGIN PV */
 typedef struct{
 	uint8_t second;
 	uint8_t minute;
 	uint8_t hour;
 }RTC_Time;
+
 RTC_Time time;
+
 char txBuffer[50];
 uint8_t previousTime = 255;
+
 I2C_LCD_HandleTypeDef lcd;
+
 char lcdBuffer[32];
+
 uint32_t ir_value;
 uint32_t ic_val1 = 0;
 uint32_t ic_val2 = 0;
@@ -74,9 +41,7 @@ uint32_t distanceBuffer[FILTER_SIZE];
 uint32_t distanceIndex = 0;
 uint32_t fusion;
 volatile int motion_triggered = 0;  // flag
-/* USER CODE END PV */
 
-/* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC_Init(void);
@@ -85,7 +50,6 @@ static void MX_TIM1_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_USART1_UART_Init(void);
-/* USER CODE BEGIN PFP */
 
 void selectionSort(uint16_t* arr, int size){ // sort from smallest to biggest
 
@@ -102,6 +66,7 @@ void selectionSort(uint16_t* arr, int size){ // sort from smallest to biggest
 		arr[min_index] = temp;
 	}
 }
+
 void HCSR04_Trigger(){
 
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
@@ -109,6 +74,7 @@ void HCSR04_Trigger(){
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
 	HAL_Delay(10);
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
+
 }
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
@@ -150,7 +116,9 @@ uint32_t filteredHCSR04(){ // Median Filtered For The HCSR04
 	return value[FILTER_SIZE / 2];
 
 }
+
 uint16_t readIR(){ // Median Filtered For The IR Sensor
+	
 	uint16_t value[FILTER_SIZE];
 
 	for(int i = 0; i < FILTER_SIZE; i++){ // add the sensor value into the array
@@ -168,6 +136,7 @@ uint16_t readIR(){ // Median Filtered For The IR Sensor
 	if (distance_cm > 80) distance_cm = 80; // threshold and sanity check
 
 	return distance_cm;
+	
 }
 
 uint32_t sensorFusion(const uint32_t hcsr04, const uint32_t ir){
@@ -175,15 +144,21 @@ uint32_t sensorFusion(const uint32_t hcsr04, const uint32_t ir){
 }
 
 int buzzerOn(int delay){ // buzzer on to the distance
+	
 	 HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 	 HAL_Delay(delay);
 	 HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
+
 }
+
 void ledOn(){ // visual warning
-	 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_SET);
-	 HAL_Delay(10);
+ 
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_SET);
+     HAL_Delay(10);
      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_RESET);
+
 }
+
 uint8_t DEC_To_BCD(uint8_t value){
 	return (uint8_t)((value / 10 * 16) + (value % 10));
 }
@@ -201,7 +176,9 @@ void RTC_setTime(uint8_t second, uint8_t minute, uint8_t hour){
 	time[2] = DEC_To_BCD(hour);
 
 	HAL_I2C_Mem_Write(&hi2c1, RTC_WRITE_ADDRESS, 0x00, 1, time, 3, HAL_MAX_DELAY);
+
 }
+
 RTC_Time RTC_getTime(){
 
 	RTC_Time time = {0};
@@ -217,53 +194,29 @@ RTC_Time RTC_getTime(){
 }
 
 void UART_Transmit(){
+
 	if(time.second != previousTime){
 		previousTime = time.second;
 
 	sprintf(txBuffer, "[ %d:%d:%d ] -> There is definite movement!\r\n",(int)time.hour, (int)time.minute, previousTime);
 	HAL_UART_Transmit(&huart1, (uint8_t*)txBuffer, strlen(txBuffer), HAL_MAX_DELAY);
 	}
+	
 }
 
-/* USER CODE END PFP */
-
-/* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){ // PIR sensor triggered
 
 	if(GPIO_Pin == GPIO_PIN_4 && motion_triggered == 0)
 		motion_triggered = 1;
-}
-/* USER CODE END 0 */
 
-/**
-  * @brief  The application entry point.
-  * @retval int
-  */
+}
+
 int main(void)
 {
-
-  /* USER CODE BEGIN 1 */
-
-  /* USER CODE END 1 */
-
-  /* MCU Configuration--------------------------------------------------------*/
-
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
 
-  /* USER CODE BEGIN Init */
-
-  /* USER CODE END Init */
-
-  /* Configure the system clock */
   SystemClock_Config();
 
-  /* USER CODE BEGIN SysInit */
-
-  /* USER CODE END SysInit */
-
-  /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_ADC_Init();
   MX_TIM2_Init();
@@ -271,7 +224,6 @@ int main(void)
   MX_I2C2_Init();
   MX_I2C1_Init();
   MX_USART1_UART_Init();
-  /* USER CODE BEGIN 2 */
 
   lcd.hi2c = &hi2c2;
   lcd.address = 0x4E;
@@ -280,52 +232,39 @@ int main(void)
 
   HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_2);
   RTC_setTime(0, 20, 12);
-  /* USER CODE END 2 */
+  
+ while (1)  {
+	if(motion_triggered == 1){
+	  HCSR04_Trigger();
+	  HAL_Delay(100);
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    /* USER CODE END WHILE */
+	  distance = filteredHCSR04();
+	  ir_value = readIR();
 
-    /* USER CODE BEGIN 3 */
-	  if(motion_triggered == 1){
-		  HCSR04_Trigger();
-		  HAL_Delay(100);
+	  fusion = sensorFusion(distance, ir_value);
 
-		 distance = filteredHCSR04();
-		 ir_value = readIR();
+	  sprintf(lcdBuffer, "  Fusion : %d ", (int)fusion);
 
-		 fusion = sensorFusion(distance, ir_value);
+	   __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 250);
 
-		 sprintf(lcdBuffer, "  Fusion : %d ", (int)fusion);
+	   time = RTC_getTime();
 
-		 __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 250);
-
-		 time = RTC_getTime();
-
-		 if(fusion <= 10){
-			 buzzerOn(10);
-			 ledOn();
-			 UART_Transmit();
-		 }else if(fusion > 10 && fusion <= 15){
-			 buzzerOn(30);
-		 }else if(fusion > 15 && fusion <= 20){
-			 buzzerOn(50);
-		 }
-
-		 lcd_gotoxy(&lcd, 0, 0);
-		 lcd_puts(&lcd, lcdBuffer);
+	 if(fusion <= 10){
+	    buzzerOn(10);
+	    ledOn();
+	    UART_Transmit();
+	  }else if(fusion > 10 && fusion <= 15){
+	    buzzerOn(30);
+	  }else if(fusion > 15 && fusion <= 20){
+	    buzzerOn(50);
 	  }
 
+	   lcd_gotoxy(&lcd, 0, 0);
+	   lcd_puts(&lcd, lcdBuffer);
+	  }
   }
-  /* USER CODE END 3 */
 }
 
-/**
-  * @brief System Clock Configuration
-  * @retval None
-  */
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -349,8 +288,6 @@ void SystemClock_Config(void)
     Error_Handler();
   }
 
-  /** Initializes the CPU, AHB and APB buses clocks
-  */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
@@ -370,23 +307,10 @@ void SystemClock_Config(void)
   }
 }
 
-/**
-  * @brief ADC Initialization Function
-  * @param None
-  * @retval None
-  */
+
 static void MX_ADC_Init(void)
 {
-
-  /* USER CODE BEGIN ADC_Init 0 */
-
-  /* USER CODE END ADC_Init 0 */
-
   ADC_ChannelConfTypeDef sConfig = {0};
-
-  /* USER CODE BEGIN ADC_Init 1 */
-
-  /* USER CODE END ADC_Init 1 */
 
   /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
   */
@@ -418,27 +342,11 @@ static void MX_ADC_Init(void)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN ADC_Init 2 */
-
-  /* USER CODE END ADC_Init 2 */
-
+ 
 }
 
-/**
-  * @brief I2C1 Initialization Function
-  * @param None
-  * @retval None
-  */
 static void MX_I2C1_Init(void)
 {
-
-  /* USER CODE BEGIN I2C1_Init 0 */
-
-  /* USER CODE END I2C1_Init 0 */
-
-  /* USER CODE BEGIN I2C1_Init 1 */
-
-  /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
   hi2c1.Init.Timing = 0x00201D2B;
   hi2c1.Init.OwnAddress1 = 0;
@@ -466,27 +374,11 @@ static void MX_I2C1_Init(void)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN I2C1_Init 2 */
-
-  /* USER CODE END I2C1_Init 2 */
 
 }
 
-/**
-  * @brief I2C2 Initialization Function
-  * @param None
-  * @retval None
-  */
 static void MX_I2C2_Init(void)
 {
-
-  /* USER CODE BEGIN I2C2_Init 0 */
-
-  /* USER CODE END I2C2_Init 0 */
-
-  /* USER CODE BEGIN I2C2_Init 1 */
-
-  /* USER CODE END I2C2_Init 1 */
   hi2c2.Instance = I2C2;
   hi2c2.Init.Timing = 0x10805D88;
   hi2c2.Init.OwnAddress1 = 0;
@@ -514,32 +406,16 @@ static void MX_I2C2_Init(void)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN I2C2_Init 2 */
-
-  /* USER CODE END I2C2_Init 2 */
 
 }
 
-/**
-  * @brief TIM1 Initialization Function
-  * @param None
-  * @retval None
-  */
 static void MX_TIM1_Init(void)
 {
-
-  /* USER CODE BEGIN TIM1_Init 0 */
-
-  /* USER CODE END TIM1_Init 0 */
-
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
   TIM_OC_InitTypeDef sConfigOC = {0};
   TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
 
-  /* USER CODE BEGIN TIM1_Init 1 */
-
-  /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
   htim1.Init.Prescaler = 48-1;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
@@ -588,32 +464,16 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN TIM1_Init 2 */
 
-  /* USER CODE END TIM1_Init 2 */
   HAL_TIM_MspPostInit(&htim1);
 
 }
-
-/**
-  * @brief TIM2 Initialization Function
-  * @param None
-  * @retval None
-  */
 static void MX_TIM2_Init(void)
 {
-
-  /* USER CODE BEGIN TIM2_Init 0 */
-
-  /* USER CODE END TIM2_Init 0 */
-
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
   TIM_IC_InitTypeDef sConfigIC = {0};
 
-  /* USER CODE BEGIN TIM2_Init 1 */
-
-  /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 48-1;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
@@ -647,27 +507,10 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN TIM2_Init 2 */
-
-  /* USER CODE END TIM2_Init 2 */
-
 }
 
-/**
-  * @brief USART1 Initialization Function
-  * @param None
-  * @retval None
-  */
 static void MX_USART1_UART_Init(void)
 {
-
-  /* USER CODE BEGIN USART1_Init 0 */
-
-  /* USER CODE END USART1_Init 0 */
-
-  /* USER CODE BEGIN USART1_Init 1 */
-
-  /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
   huart1.Init.BaudRate = 9600;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
@@ -682,23 +525,10 @@ static void MX_USART1_UART_Init(void)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN USART1_Init 2 */
-
-  /* USER CODE END USART1_Init 2 */
-
 }
-
-/**
-  * @brief GPIO Initialization Function
-  * @param None
-  * @retval None
-  */
 static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-  /* USER CODE BEGIN MX_GPIO_Init_1 */
-
-  /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOF_CLK_ENABLE();
@@ -734,44 +564,17 @@ static void MX_GPIO_Init(void)
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI4_15_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
-
-  /* USER CODE BEGIN MX_GPIO_Init_2 */
-
-  /* USER CODE END MX_GPIO_Init_2 */
 }
 
-/* USER CODE BEGIN 4 */
-
-/* USER CODE END 4 */
-
-/**
-  * @brief  This function is executed in case of error occurrence.
-  * @retval None
-  */
 void Error_Handler(void)
 {
-  /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
   while (1)
   {
   }
-  /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef  USE_FULL_ASSERT
-/**
-  * @brief  Reports the name of the source file and the source line number
-  *         where the assert_param error has occurred.
-  * @param  file: pointer to the source file name
-  * @param  line: assert_param error line source number
-  * @retval None
-  */
 void assert_failed(uint8_t *file, uint32_t line)
 {
-  /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
      ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-  /* USER CODE END 6 */
 }
-#endif /* USE_FULL_ASSERT */
